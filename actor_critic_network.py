@@ -2,23 +2,25 @@ import tensorflow as tf
 import gym
 import env_helper
 import pdb
+import numpy as np
+
 class ActorCriticNetwork:
 
 	def __init__(self, action_size):
 		self.action_size = action_size
 
 		# declaring placeholders
-		self.input = tf.placeholder(tf.uint8, shape=[None,210,160,3])
+		self.input_state = tf.placeholder(tf.uint8, shape=[None,210,160,3])
 		self.value_target = tf.placeholder(tf.float32, shape=[None])
 		self.action_target = tf.placeholder(tf.uint8, shape=[None]) # need to convert to one hot
 		self.action_target = tf.one_hot(self.action_target, action_size)
 		self.action_advantage = tf.placeholder(tf.float32, shape=[None,1])
 
 		# preprocess
-		self.processed_input = self.build_shared_net(self.input)
+		self.processed_input = self.build_shared_net(self.input_state)
 
 		# policy
-		self.action_prediction, self.action_loss = self.build_policy_net()
+		self.action_prob_prediction, self.action_loss = self.build_policy_net()
 
 		# value
 		self.value_prediction, self.value_loss = self.build_value_net()
@@ -71,12 +73,26 @@ class ActorCriticNetwork:
 			loss = -tf.reduce_sum(tf.squared_difference(value_prediction, self.value_target))
 
 			return value_prediction, loss
+
+	def pick_action(self, sess, state):
+		prob = sess.run(self.action_prob_prediction, feed_dict={self.input_state: [state]})[0]
+		action = np.random.choice(range(self.action_size), 1, p = prob)
+		return action[0]
+
 def main():
 	env = gym.make('Breakout-v0')
 	# test first state
 	s0 = env_helper.preprocess_atari_state(env.reset())
-	ac_network = ActorCriticNetwork(env.action_space.n)
 
+	with tf.Session() as sess:
+		with tf.device("/cpu:0"):
+			ac_network = ActorCriticNetwork(env.action_space.n)
+			sess.run(tf.initialize_all_variables())
+			# random behavior
+			for i in range(100):
+				env.render()
+				a = ac_network.pick_action(sess, s0)
+				env.step(a)
 
 if __name__ == "__main__":
 	main()
