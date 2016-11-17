@@ -82,7 +82,7 @@ class ActorCriticNetwork:
 def main():
 	env = gym.make('Breakout-v0')
 	# test first state
-	s0 = env_helper.preprocess_atari_state(env.reset())
+	state = env_helper.preprocess_atari_state(env.reset())
 
 	with tf.Session() as sess:
 		with tf.device("/cpu:0"):
@@ -91,8 +91,10 @@ def main():
 			# random behavior
 			for i in range(100):
 				env.render()
-				a = ac_network.pick_action(sess, s0)
-				env.step(a)
+				a = ac_network.pick_action(sess, state)
+				next_state,reward,done,info = env.step(a)
+				state = env_helper.preprocess_atari_state(next_state, state)
+
 
 if __name__ == "__main__":
 	main()
